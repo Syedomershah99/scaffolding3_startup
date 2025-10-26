@@ -51,34 +51,34 @@ class TextPreprocessor:
         
         return cleaned.strip()
     
-    def normalize_text(self, text: str, preserve_sentences: bool = True) -> str:
+    def normalize_text(self, text: str, preserve_sentences: bool = False) -> str:
         """
-        Normalize text while preserving sentence boundaries
-        
-        Args:
-            text: Input text
-            preserve_sentences: If True, keeps . ! ? for sentence detection
+        Normalize text by converting to lowercase, removing extra spaces,
+        fixing punctuation, and optionally preserving sentence boundaries.
         """
+        import re
+
+        if not isinstance(text, str):
+            return ""
+
         # Convert to lowercase
         text = text.lower()
-        
-        # Standardize quotes and dashes
-        text = re.sub(r'[""]', '"', text)
-        text = re.sub(r'['']', "'", text)
-        text = re.sub(r'—|–', '-', text)
-        
+
+        # Replace common special quotes/apostrophes with normal ones
+        text = re.sub(r"[‘’´`]", "'", text)  # <-- FIXED: correct regex for apostrophes
+        text = re.sub(r"[“”]", '"', text)    # smart quotes → normal quotes
+
+        # Remove unwanted characters, preserve sentence delimiters if needed
         if preserve_sentences:
-            # Keep sentence endings but remove other punctuation
-            # This regex keeps . ! ? but removes , ; : etc
-            text = re.sub(r'[^\w\s.!?\'-]', ' ', text)
+            text = re.sub(r"[^a-z0-9.,!?'\s]", " ", text)
         else:
-            # Remove all punctuation except apostrophes in contractions
-            text = re.sub(r"(?<!\w)'(?!\w)|[^\w\s]", ' ', text)
-        
-        # Clean up whitespace
-        text = re.sub(r'\s+', ' ', text)
-        
-        return text.strip()
+            text = re.sub(r"[^a-z0-9'\s]", " ", text)
+
+        # Normalize spaces
+        text = re.sub(r"\s+", " ", text).strip()
+
+        return text
+
     
     def tokenize_sentences(self, text: str) -> List[str]:
         """Split text into sentences"""
@@ -118,49 +118,124 @@ class TextPreprocessor:
     
     def fetch_from_url(self, url: str) -> str:
         """
-        TODO: Fetch text content from a URL (especially Project Gutenberg)
-        
+        Fetch text content from a URL (especially Project Gutenberg)
+
         Args:
             url: URL to a .txt file
-            
+
         Returns:
-            Raw text content
-            
+            Raw text content (decoded as UTF-8)
+
         Raises:
-            Exception if URL is invalid or cannot be reached
+            Exception: if the URL is invalid, unreachable, or not a .txt file
         """
-        # Hint: Use requests.get() and validate that it's a .txt URL
-        # Don't forget error handling!
-        raise NotImplementedError("Implement this for Part 2 of the assignment")
+        # Validate that it’s a .txt URL
+        if not url.lower().endswith(".txt"):
+            raise ValueError("URL must point to a .txt file (e.g., from Project Gutenberg).")
+
+        try:
+            response = requests.get(url, timeout=15)
+            response.raise_for_status()  # Raise HTTPError for bad responses (4xx, 5xx)
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Failed to fetch from URL: {e}")
+
+        # Ensure we got plain text data
+        content_type = response.headers.get("Content-Type", "")
+        if "text" not in content_type:
+            raise Exception(f"Invalid content type: expected text, got {content_type}")
+
+        # Decode text content safely
+        raw_text = response.text.strip()
+        if not raw_text:
+            raise Exception("Fetched content is empty.")
+
+        return raw_text
+
     
     def get_text_statistics(self, text: str) -> Dict:
         """
-        TODO: Calculate basic statistics about the text
-        
+        Calculate basic statistics about the text.
+
         Returns dictionary with:
             - total_characters
-            - total_words  
+            - total_words
             - total_sentences
             - avg_word_length
             - avg_sentence_length
             - most_common_words (top 10)
         """
-        # Hint: Use the existing tokenize methods and Counter
-        raise NotImplementedError("Implement this for Part 2 of the assignment")
+        # Normalize text before processing to keep consistent tokens
+        normalized_text = self.normalize_text(text, preserve_sentences=True)
+
+        # Tokenize
+        sentences = self.tokenize_sentences(normalized_text)
+        words = self.tokenize_words(normalized_text)
+
+        # Handle edge cases (empty text)
+        if not words or not sentences:
+            return {
+                "total_characters": 0,
+                "total_words": 0,
+                "total_sentences": 0,
+                "avg_word_length": 0.0,
+                "avg_sentence_length": 0.0,
+                "most_common_words": []
+            }
+
+        # Compute statistics
+        total_characters = len(normalized_text)
+        total_words = len(words)
+        total_sentences = len(sentences)
+        avg_word_length = sum(len(w) for w in words) / total_words
+        avg_sentence_length = sum(len(self.tokenize_words(s)) for s in sentences) / total_sentences
+
+        # Use Counter to find most common words
+        most_common = Counter(words).most_common(10)
+
+        # Return structured results
+        return {
+            "total_characters": total_characters,
+            "total_words": total_words,
+            "total_sentences": total_sentences,
+            "avg_word_length": round(avg_word_length, 2),
+            "avg_sentence_length": round(avg_sentence_length, 2),
+            "most_common_words": most_common
+        }
+
     
     def create_summary(self, text: str, num_sentences: int = 3) -> str:
         """
-        TODO: Create a simple extractive summary by returning the first N sentences
-        
+        Create a simple extractive summary by returning the first N sentences.
+
         Args:
             text: Cleaned text
             num_sentences: Number of sentences to include
-            
+
         Returns:
             Summary string
         """
-        # Hint: Use tokenize_sentences() and join the first N sentences
-        raise NotImplementedError("Implement this for Part 2 of the assignment")
+        # Normalize text (preserve sentence boundaries)
+        normalized_text = self.normalize_text(text, preserve_sentences=True)
+
+        # Split text into sentences using existing tokenizer
+        sentences = self.tokenize_sentences(normalized_text)
+
+        # Handle empty or very short text
+        if not sentences:
+            return ""
+
+        # Limit to available sentences
+        selected_sentences = sentences[:num_sentences]
+
+        # Join selected sentences into a coherent summary
+        summary = ". ".join(selected_sentences)
+
+        # Ensure proper punctuation ending
+        if not summary.endswith(('.', '!', '?')):
+            summary += '.'
+
+        return summary.strip()
+
 
 
 class FrequencyAnalyzer:

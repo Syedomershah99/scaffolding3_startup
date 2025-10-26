@@ -197,3 +197,7 @@ By completing this assignment, you will:
 **Total: 50 points**
 
 Good luck! This assignment prepares you for the main Shannon Information Theory assignment where you'll implement n-gram models and text generation using similar preprocessing techniques.
+
+# results screenshots
+
+![alt text](<Screenshot 2025-10-26 170727.png>) ![alt text](<Screenshot 2025-10-26 170829.png>) ![alt text](<Screenshot 2025-10-26 171431.png>) ![alt text](<Screenshot 2025-10-26 171453.png>) ![alt text](<Screenshot 2025-10-26 124704.png>)

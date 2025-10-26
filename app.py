@@ -28,13 +28,11 @@ def health_check():
 @app.route('/api/clean', methods=['POST'])
 def clean_text():
     """
-    TODO: Implement this endpoint for Part 3
-    
     API endpoint that accepts a URL and returns cleaned text
-    
+
     Expected JSON input:
         {"url": "https://www.gutenberg.org/files/1342/1342-0.txt"}
-    
+
     Returns JSON:
         {
             "success": true/false,
@@ -45,22 +43,49 @@ def clean_text():
         }
     """
     try:
-        # TODO: Get JSON data from request
-        # TODO: Extract URL from the JSON
-        # TODO: Validate URL (should be .txt)
-        # TODO: Use preprocessor.fetch_from_url() 
-        # TODO: Clean the text with preprocessor.clean_gutenberg_text()
-        # TODO: Normalize with preprocessor.normalize_text()
-        # TODO: Get statistics with preprocessor.get_text_statistics()
-        # TODO: Create summary with preprocessor.create_summary()
-        # TODO: Return JSON response
-        
+        # Get JSON data from request
+        data = request.get_json(force=True)
+        if not data or "url" not in data:
+            return jsonify({
+                "success": False,
+                "error": "Missing 'url' field in request."
+            }), 400
+
+        url = data["url"].strip()
+
+        # Validate URL format
+        if not url.lower().endswith(".txt"):
+            return jsonify({
+                "success": False,
+                "error": "URL must point to a .txt file (e.g., Project Gutenberg)."
+            }), 400
+
+        # Fetch raw text from URL
+        raw_text = preprocessor.fetch_from_url(url)
+
+        # Clean Gutenberg headers/footers
+        cleaned_text = preprocessor.clean_gutenberg_text(raw_text)
+
+        # Normalize text
+        normalized_text = preprocessor.normalize_text(cleaned_text)
+
+        # Compute text statistics
+        stats = preprocessor.get_text_statistics(normalized_text)
+
+        # Generate simple summary
+        summary = preprocessor.create_summary(normalized_text, num_sentences=3)
+
+        # Return full JSON response
         return jsonify({
-            "success": False,
-            "error": "Not implemented yet - complete this for Part 3!"
-        }), 501
-        
+            "success": True,
+            "cleaned_text": normalized_text[:500],  # only return first 500 chars for readability
+            "statistics": stats,
+            "summary": summary
+        }), 200
+
     except Exception as e:
+        # Log traceback for debugging
+        traceback.print_exc()
         return jsonify({
             "success": False,
             "error": f"Server error: {str(e)}"
@@ -69,13 +94,11 @@ def clean_text():
 @app.route('/api/analyze', methods=['POST'])
 def analyze_text():
     """
-    TODO: Implement this endpoint for Part 3
-    
-    API endpoint that accepts raw text and returns statistics only
-    
+    API endpoint that accepts raw text and returns statistics only.
+
     Expected JSON input:
         {"text": "Your raw text here..."}
-    
+
     Returns JSON:
         {
             "success": true/false,
@@ -84,21 +107,41 @@ def analyze_text():
         }
     """
     try:
-        # TODO: Get JSON data from request
-        # TODO: Extract text from the JSON
-        # TODO: Get statistics with preprocessor.get_text_statistics()
-        # TODO: Return JSON response
-        
+        # Get JSON data from request
+        data = request.get_json(force=True)
+        if not data or "text" not in data:
+            return jsonify({
+                "success": False,
+                "error": "Missing 'text' field in request."
+            }), 400
+
+        raw_text = data["text"].strip()
+
+        if not raw_text:
+            return jsonify({
+                "success": False,
+                "error": "Provided text is empty."
+            }), 400
+
+        # Normalize the text before analysis
+        normalized_text = preprocessor.normalize_text(raw_text)
+
+        # Compute statistics using existing method
+        stats = preprocessor.get_text_statistics(normalized_text)
+
+        # Return successful JSON response
         return jsonify({
-            "success": False,
-            "error": "Not implemented yet - complete this for Part 3!"
-        }), 501
-        
+            "success": True,
+            "statistics": stats
+        }), 200
+
     except Exception as e:
+        traceback.print_exc()
         return jsonify({
             "success": False,
             "error": f"Server error: {str(e)}"
         }), 500
+
 
 # Error handlers
 @app.errorhandler(404)
